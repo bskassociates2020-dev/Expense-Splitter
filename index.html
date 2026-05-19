@@ -1,33 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Cochin Tour 2026</title>
 
 <meta name="theme-color" content="#0f172a">
+
 <meta name="apple-mobile-web-app-capable" content="yes">
+
 <meta name="mobile-web-app-capable" content="yes">
 
 <link rel="manifest" href="manifest.json">
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
 <style>
+
 body{
     margin:0;
     padding:15px;
     font-family:Arial,sans-serif;
     background:#0f172a;
 }
+
 .container{
     background:white;
     border-radius:15px;
     padding:20px;
-    max-width:1600px;
+    max-width:1800px;
     margin:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
 }
+
 h1{
     text-align:center;
+    color:#111827;
+    margin-bottom:20px;
 }
+
+.buttons{
+    margin-bottom:15px;
+}
+
 button{
     background:#2563eb;
     color:white;
@@ -35,37 +56,71 @@ button{
     padding:10px 15px;
     border-radius:8px;
     margin:5px;
+    cursor:pointer;
+    font-size:14px;
 }
+
+button:hover{
+    background:#1d4ed8;
+}
+
 table{
     width:100%;
     border-collapse:collapse;
     margin-top:15px;
+    min-width:1200px;
 }
+
 th,td{
-    border:1px solid #ccc;
+    border:1px solid #cbd5e1;
     padding:8px;
     text-align:center;
 }
+
 th{
     background:#111827;
     color:white;
 }
+
+tr:nth-child(even){
+    background:#f8fafc;
+}
+
 input{
     width:100%;
-    box-sizing:border-box;
     padding:6px;
+    box-sizing:border-box;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    text-align:center;
 }
+
 .total{
     background:#dbeafe;
     font-weight:bold;
 }
+
+.table-wrapper{
+    overflow-x:auto;
+}
+
 .card{
-    background:#f1f5f9;
-    padding:10px;
+    background:#ecfeff;
+    padding:12px;
     margin-top:10px;
     border-radius:8px;
+    border-left:5px solid #0891b2;
 }
+
+.footer{
+    text-align:center;
+    margin-top:20px;
+    color:#64748b;
+    font-size:13px;
+}
+
 </style>
+
 </head>
 
 <body>
@@ -74,19 +129,55 @@ input{
 
 <h1>🚐 Cochin Tour 2026</h1>
 
-<button onclick="addExpense()">+ Add Expense</button>
-<button onclick="saveData()">Save Data</button>
-<button onclick="loadData()">Load Data</button>
+<div class="buttons">
 
-<table id="expenseTable">
+<button onclick="addExpense()">
++ Add Expense
+</button>
+
+<button onclick="swapView()">
+Swap Rows / Columns
+</button>
+
+<button onclick="calculate()">
+Generate Report
+</button>
+
+<button onclick="downloadPDF()">
+Download PDF
+</button>
+
+<button onclick="saveData()">
+Save Data
+</button>
+
+<button onclick="loadData()">
+Load Data
+</button>
+
+</div>
+
+<div class="table-wrapper">
+
+<table>
+
 <thead id="thead"></thead>
+
 <tbody id="tbody"></tbody>
+
 <tfoot id="tfoot"></tfoot>
+
 </table>
 
-<h2>Settlement Report</h2>
+</div>
+
+<h2>Final Settlement</h2>
 
 <div id="report"></div>
+
+<div class="footer">
+Offline Expense Sharing Application
+</div>
 
 </div>
 
@@ -101,43 +192,119 @@ const friends = [
 "Krishna"
 ];
 
-let expenses = ["Travel","Food"];
+let expenses = [
+"Travel",
+"Food"
+];
+
+let swapped = false;
 
 function render(){
 
-    let th = `<tr><th>Friend</th>`;
+    let head = "<tr>";
 
-    expenses.forEach((e,i)=>{
-        th += `
-        <th>
-            <input value="${e}" onchange="renameExpense(${i},this.value)">
-        </th>`;
-    });
+    if(!swapped){
 
-    th += `<th>Total</th></tr>`;
+        head += "<th>Friends</th>";
 
-    document.getElementById("thead").innerHTML = th;
+        expenses.forEach((e,i)=>{
 
-    let body = "";
-
-    friends.forEach((f,r)=>{
-
-        body += `<tr><td><b>${f}</b></td>`;
-
-        expenses.forEach((e,c)=>{
-
-            let val = localStorage.getItem(`cell_${r}_${c}`) || 0;
-
-            body += `
-            <td>
-                <input type="number" value="${val}" id="cell_${r}_${c}" oninput="calculate()">
-            </td>`;
+            head += `
+            <th>
+                <input 
+                    value="${e}" 
+                    onchange="renameExpense(${i},this.value)"
+                >
+            </th>`;
         });
 
-        body += `<td class="total" id="rt_${r}">0</td></tr>`;
-    });
+        head += "<th>Total</th>";
 
-    document.getElementById("tbody").innerHTML = body;
+        document.getElementById("thead").innerHTML = head;
+
+        let body = "";
+
+        friends.forEach((f,r)=>{
+
+            body += `<tr><td><b>${f}</b></td>`;
+
+            expenses.forEach((e,c)=>{
+
+                let val = localStorage.getItem(`cell_${r}_${c}`) || 0;
+
+                body += `
+                <td>
+                    <input 
+                        type="number" 
+                        value="${val}" 
+                        id="cell_${r}_${c}"
+                        oninput="calculate()"
+                    >
+                </td>`;
+            });
+
+            body += `
+            <td class="total" id="rt_${r}">
+            0
+            </td>`;
+
+            body += "</tr>";
+        });
+
+        document.getElementById("tbody").innerHTML = body;
+
+    }else{
+
+        head += "<th>Expenses</th>";
+
+        friends.forEach(f=>{
+            head += `<th>${f}</th>`;
+        });
+
+        head += "<th>Total</th>";
+
+        document.getElementById("thead").innerHTML = head;
+
+        let body = "";
+
+        expenses.forEach((e,r)=>{
+
+            body += `<tr><td><b>${e}</b></td>`;
+
+            friends.forEach((f,c)=>{
+
+                let val = localStorage.getItem(`cell_${c}_${r}`) || 0;
+
+                body += `
+                <td>
+                    <input 
+                        type="number"
+                        value="${val}"
+                        id="swap_${r}_${c}"
+                        oninput="syncSwap(${r},${c})"
+                    >
+                </td>`;
+            });
+
+            body += `
+            <td class="total" id="srt_${r}">
+            0
+            </td>`;
+
+            body += "</tr>";
+        });
+
+        document.getElementById("tbody").innerHTML = body;
+    }
+
+    calculate();
+}
+
+function syncSwap(r,c){
+
+    let value = document.getElementById(`swap_${r}_${c}`).value;
+
+    localStorage.setItem(`cell_${c}_${r}`,value);
 
     calculate();
 }
@@ -148,18 +315,30 @@ function renameExpense(i,v){
 
 function addExpense(){
 
-    let n = prompt("Expense Name");
+    let name = prompt("Enter Expense Name");
 
-    if(n){
-        expenses.push(n);
+    if(name){
+
+        expenses.push(name);
+
+        saveMeta();
+
         render();
     }
 }
 
+function swapView(){
+
+    swapped = !swapped;
+
+    render();
+}
+
 function calculate(){
 
-    let grand = 0;
     let colTotals = Array(expenses.length).fill(0);
+
+    let grandTotal = 0;
 
     let paid = {};
 
@@ -167,42 +346,70 @@ function calculate(){
 
     friends.forEach((f,r)=>{
 
-        let rt = 0;
+        let rowTotal = 0;
 
         expenses.forEach((e,c)=>{
 
-            let val = parseFloat(document.getElementById(`cell_${r}_${c}`).value || 0);
+            let val = parseFloat(
+                localStorage.getItem(`cell_${r}_${c}`) || 0
+            );
 
-            rt += val;
+            rowTotal += val;
 
             colTotals[c] += val;
-
-            localStorage.setItem(`cell_${r}_${c}`,val);
         });
 
-        paid[f]=rt;
+        paid[f] = rowTotal;
 
-        grand += rt;
+        grandTotal += rowTotal;
 
-        document.getElementById(`rt_${r}`).innerHTML = "₹ "+rt.toFixed(2);
+        if(document.getElementById(`rt_${r}`)){
+
+            document.getElementById(`rt_${r}`).innerHTML =
+            "₹ " + rowTotal.toFixed(2);
+        }
     });
 
-    let foot = `<tr class="total"><td>TOTAL</td>`;
+    if(swapped){
+
+        expenses.forEach((e,r)=>{
+
+            let total = 0;
+
+            friends.forEach((f,c)=>{
+
+                let val = parseFloat(
+                    localStorage.getItem(`cell_${c}_${r}`) || 0
+                );
+
+                total += val;
+            });
+
+            document.getElementById(`srt_${r}`).innerHTML =
+            "₹ " + total.toFixed(2);
+        });
+    }
+
+    let foot = `<tr class="total">`;
+
+    foot += `<td>TOTAL</td>`;
 
     colTotals.forEach(t=>{
         foot += `<td>₹ ${t.toFixed(2)}</td>`;
     });
 
-    foot += `<td>₹ ${grand.toFixed(2)}</td></tr>`;
+    foot += `<td>₹ ${grandTotal.toFixed(2)}</td>`;
+
+    foot += `</tr>`;
 
     document.getElementById("tfoot").innerHTML = foot;
 
-    settlement(paid,grand);
+    settlement(paid,grandTotal);
 }
 
-function settlement(paid,grand){
+function settlement(paid,grandTotal){
 
-    let perHead = grand / friends.length;
+    let perHead = grandTotal / friends.length;
 
     let balances = {};
 
@@ -216,19 +423,27 @@ function settlement(paid,grand){
     for(let k in balances){
 
         if(balances[k] > 0){
-            creditors.push({name:k,amt:balances[k]});
+            creditors.push({
+                name:k,
+                amt:balances[k]
+            });
         }
 
         if(balances[k] < 0){
-            debtors.push({name:k,amt:Math.abs(balances[k])});
+            debtors.push({
+                name:k,
+                amt:Math.abs(balances[k])
+            });
         }
     }
 
     let html = `
     <div class="card">
-    <b>Total Expense :</b> ₹ ${grand.toFixed(2)}<br>
-    <b>Per Head :</b> ₹ ${perHead.toFixed(2)}
-    </div>`;
+    <b>Total Expense :</b> ₹ ${grandTotal.toFixed(2)}
+    <br><br>
+    <b>Expense Per Head :</b> ₹ ${perHead.toFixed(2)}
+    </div>
+    `;
 
     creditors.forEach(c=>{
 
@@ -240,8 +455,13 @@ function settlement(paid,grand){
 
                 html += `
                 <div class="card">
-                ${d.name} has to pay ₹ ${s.toFixed(2)} to ${c.name}
-                </div>`;
+                <b>${d.name}</b>
+                has to pay
+                <b>₹ ${s.toFixed(2)}</b>
+                to
+                <b>${c.name}</b>
+                </div>
+                `;
 
                 c.amt -= s;
                 d.amt -= s;
@@ -250,40 +470,162 @@ function settlement(paid,grand){
     });
 
     document.getElementById("report").innerHTML = html;
+
+    window.finalGrandTotal = grandTotal;
+    window.finalPerHead = perHead;
+}
+
+function downloadPDF(){
+
+    calculate();
+
+    const { jsPDF } = window.jspdf;
+
+    let doc = new jsPDF('l','mm','a4');
+
+    doc.setFontSize(20);
+
+    doc.text("Cochin Tour 2026",14,15);
+
+    let headers = [];
+
+    if(!swapped){
+
+        headers.push("Friends");
+
+        expenses.forEach(e=>{
+            headers.push(e);
+        });
+
+    }else{
+
+        headers.push("Expenses");
+
+        friends.forEach(f=>{
+            headers.push(f);
+        });
+    }
+
+    headers.push("Total");
+
+    let body = [];
+
+    if(!swapped){
+
+        friends.forEach((f,r)=>{
+
+            let row = [f];
+
+            let total = 0;
+
+            expenses.forEach((e,c)=>{
+
+                let val = parseFloat(
+                    localStorage.getItem(`cell_${r}_${c}`) || 0
+                );
+
+                row.push(val.toFixed(2));
+
+                total += val;
+            });
+
+            row.push(total.toFixed(2));
+
+            body.push(row);
+        });
+
+    }else{
+
+        expenses.forEach((e,r)=>{
+
+            let row = [e];
+
+            let total = 0;
+
+            friends.forEach((f,c)=>{
+
+                let val = parseFloat(
+                    localStorage.getItem(`cell_${c}_${r}`) || 0
+                );
+
+                row.push(val.toFixed(2));
+
+                total += val;
+            });
+
+            row.push(total.toFixed(2));
+
+            body.push(row);
+        });
+    }
+
+    doc.autoTable({
+        startY:25,
+        head:[headers],
+        body:body,
+        theme:'grid',
+        styles:{
+            halign:'center',
+            fontSize:9
+        }
+    });
+
+    let y = doc.lastAutoTable.finalY + 15;
+
+    doc.text(
+        `Total Expense : ₹ ${window.finalGrandTotal.toFixed(2)}`,
+        14,
+        y
+    );
+
+    y += 10;
+
+    doc.text(
+        `Expense Per Head : ₹ ${window.finalPerHead.toFixed(2)}`,
+        14,
+        y
+    );
+
+    doc.save("Cochin_Tour_2026_Report.pdf");
+}
+
+function saveMeta(){
+
+    localStorage.setItem(
+        "expenseNames",
+        JSON.stringify(expenses)
+    );
 }
 
 function saveData(){
 
-    let data = {
-        expenses: expenses
-    };
+    saveMeta();
 
-    localStorage.setItem("cochinTourData",JSON.stringify(data));
-
-    alert("Data saved locally in mobile.");
+    alert("Data Saved Locally");
 }
 
 function loadData(){
 
-    let data = JSON.parse(localStorage.getItem("cochinTourData"));
+    let exp = JSON.parse(
+        localStorage.getItem("expenseNames")
+    );
 
-    if(data){
+    if(exp){
 
-        expenses = data.expenses;
-
-        render();
-
-        alert("Data loaded.");
+        expenses = exp;
     }
+
+    render();
+
+    alert("Data Loaded");
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
-}
+loadData();
 
 render();
 
 </script>
 
 </body>
+
 </html>

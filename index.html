@@ -199,6 +199,18 @@ let expenses = [
 
 let swapped = false;
 
+function getCell(r,c){
+
+    return parseFloat(
+        localStorage.getItem(`cell_${r}_${c}`) || 0
+    );
+}
+
+function setCell(r,c,v){
+
+    localStorage.setItem(`cell_${r}_${c}`,v);
+}
+
 function render(){
 
     let head = "<tr>";
@@ -212,7 +224,7 @@ function render(){
             head += `
             <th>
                 <input 
-                    value="${e}" 
+                    value="${e}"
                     onchange="renameExpense(${i},this.value)"
                 >
             </th>`;
@@ -226,19 +238,18 @@ function render(){
 
         friends.forEach((f,r)=>{
 
-            body += `<tr><td><b>${f}</b></td>`;
+            body += `<tr>`;
+
+            body += `<td><b>${f}</b></td>`;
 
             expenses.forEach((e,c)=>{
 
-                let val = localStorage.getItem(`cell_${r}_${c}`) || 0;
-
                 body += `
                 <td>
-                    <input 
-                        type="number" 
-                        value="${val}" 
-                        id="cell_${r}_${c}"
-                        oninput="calculate()"
+                    <input
+                        type="number"
+                        value="${getCell(r,c)}"
+                        onchange="updateCell(${r},${c},this.value)"
                     >
                 </td>`;
             });
@@ -258,6 +269,7 @@ function render(){
         head += "<th>Expenses</th>";
 
         friends.forEach(f=>{
+
             head += `<th>${f}</th>`;
         });
 
@@ -269,19 +281,18 @@ function render(){
 
         expenses.forEach((e,r)=>{
 
-            body += `<tr><td><b>${e}</b></td>`;
+            body += `<tr>`;
+
+            body += `<td><b>${e}</b></td>`;
 
             friends.forEach((f,c)=>{
 
-                let val = localStorage.getItem(`cell_${c}_${r}`) || 0;
-
                 body += `
                 <td>
-                    <input 
+                    <input
                         type="number"
-                        value="${val}"
-                        id="swap_${r}_${c}"
-                        oninput="syncSwap(${r},${c})"
+                        value="${getCell(c,r)}"
+                        onchange="updateCell(${c},${r},this.value)"
                     >
                 </td>`;
             });
@@ -300,17 +311,18 @@ function render(){
     calculate();
 }
 
-function syncSwap(r,c){
+function updateCell(r,c,v){
 
-    let value = document.getElementById(`swap_${r}_${c}`).value;
-
-    localStorage.setItem(`cell_${c}_${r}`,value);
+    setCell(r,c,v);
 
     calculate();
 }
 
 function renameExpense(i,v){
-    expenses[i]=v;
+
+    expenses[i] = v;
+
+    saveMeta();
 }
 
 function addExpense(){
@@ -336,9 +348,9 @@ function swapView(){
 
 function calculate(){
 
-    let colTotals = Array(expenses.length).fill(0);
-
     let grandTotal = 0;
+
+    let columnTotals = Array(expenses.length).fill(0);
 
     let paid = {};
 
@@ -350,13 +362,11 @@ function calculate(){
 
         expenses.forEach((e,c)=>{
 
-            let val = parseFloat(
-                localStorage.getItem(`cell_${r}_${c}`) || 0
-            );
+            let val = getCell(r,c);
 
             rowTotal += val;
 
-            colTotals[c] += val;
+            columnTotals[c] += val;
         });
 
         paid[f] = rowTotal;
@@ -378,11 +388,7 @@ function calculate(){
 
             friends.forEach((f,c)=>{
 
-                let val = parseFloat(
-                    localStorage.getItem(`cell_${c}_${r}`) || 0
-                );
-
-                total += val;
+                total += getCell(c,r);
             });
 
             document.getElementById(`srt_${r}`).innerHTML =
@@ -394,9 +400,27 @@ function calculate(){
 
     foot += `<td>TOTAL</td>`;
 
-    colTotals.forEach(t=>{
-        foot += `<td>₹ ${t.toFixed(2)}</td>`;
-    });
+    if(!swapped){
+
+        columnTotals.forEach(t=>{
+
+            foot += `<td>₹ ${t.toFixed(2)}</td>`;
+        });
+
+    }else{
+
+        friends.forEach((f,c)=>{
+
+            let total = 0;
+
+            expenses.forEach((e,r)=>{
+
+                total += getCell(c,r);
+            });
+
+            foot += `<td>₹ ${total.toFixed(2)}</td>`;
+        });
+    }
 
     foot += `<td>₹ ${grandTotal.toFixed(2)}</td>`;
 
@@ -414,15 +438,18 @@ function settlement(paid,grandTotal){
     let balances = {};
 
     friends.forEach(f=>{
-        balances[f]=paid[f]-perHead;
+
+        balances[f] = paid[f] - perHead;
     });
 
     let creditors = [];
+
     let debtors = [];
 
     for(let k in balances){
 
         if(balances[k] > 0){
+
             creditors.push({
                 name:k,
                 amt:balances[k]
@@ -430,6 +457,7 @@ function settlement(paid,grandTotal){
         }
 
         if(balances[k] < 0){
+
             debtors.push({
                 name:k,
                 amt:Math.abs(balances[k])
@@ -445,13 +473,21 @@ function settlement(paid,grandTotal){
     </div>
     `;
 
+    window.settlementLines = [];
+
     creditors.forEach(c=>{
 
         debtors.forEach(d=>{
 
-            if(c.amt>0 && d.amt>0){
+            if(c.amt > 0 && d.amt > 0){
 
                 let s = Math.min(c.amt,d.amt);
+
+                window.settlementLines.push({
+                    from:d.name,
+                    to:c.name,
+                    amount:s
+                });
 
                 html += `
                 <div class="card">
@@ -460,10 +496,10 @@ function settlement(paid,grandTotal){
                 <b>₹ ${s.toFixed(2)}</b>
                 to
                 <b>${c.name}</b>
-                </div>
-                `;
+                </div>`;
 
                 c.amt -= s;
+
                 d.amt -= s;
             }
         });
@@ -472,6 +508,7 @@ function settlement(paid,grandTotal){
     document.getElementById("report").innerHTML = html;
 
     window.finalGrandTotal = grandTotal;
+
     window.finalPerHead = perHead;
 }
 
@@ -489,28 +526,15 @@ function downloadPDF(){
 
     let headers = [];
 
+    let body = [];
+
     if(!swapped){
 
         headers.push("Friends");
 
-        expenses.forEach(e=>{
-            headers.push(e);
-        });
+        expenses.forEach(e=>headers.push(e));
 
-    }else{
-
-        headers.push("Expenses");
-
-        friends.forEach(f=>{
-            headers.push(f);
-        });
-    }
-
-    headers.push("Total");
-
-    let body = [];
-
-    if(!swapped){
+        headers.push("Total");
 
         friends.forEach((f,r)=>{
 
@@ -520,9 +544,7 @@ function downloadPDF(){
 
             expenses.forEach((e,c)=>{
 
-                let val = parseFloat(
-                    localStorage.getItem(`cell_${r}_${c}`) || 0
-                );
+                let val = getCell(r,c);
 
                 row.push(val.toFixed(2));
 
@@ -536,6 +558,12 @@ function downloadPDF(){
 
     }else{
 
+        headers.push("Expenses");
+
+        friends.forEach(f=>headers.push(f));
+
+        headers.push("Total");
+
         expenses.forEach((e,r)=>{
 
             let row = [e];
@@ -544,9 +572,7 @@ function downloadPDF(){
 
             friends.forEach((f,c)=>{
 
-                let val = parseFloat(
-                    localStorage.getItem(`cell_${c}_${r}`) || 0
-                );
+                let val = getCell(c,r);
 
                 row.push(val.toFixed(2));
 
@@ -560,10 +586,15 @@ function downloadPDF(){
     }
 
     doc.autoTable({
+
         startY:25,
+
         head:[headers],
+
         body:body,
+
         theme:'grid',
+
         styles:{
             halign:'center',
             fontSize:9
@@ -572,19 +603,42 @@ function downloadPDF(){
 
     let y = doc.lastAutoTable.finalY + 15;
 
+    doc.setFontSize(14);
+
     doc.text(
         `Total Expense : ₹ ${window.finalGrandTotal.toFixed(2)}`,
         14,
         y
     );
 
-    y += 10;
+    y += 8;
 
     doc.text(
         `Expense Per Head : ₹ ${window.finalPerHead.toFixed(2)}`,
         14,
         y
     );
+
+    y += 12;
+
+    doc.setFontSize(13);
+
+    doc.text("Settlement Report",14,y);
+
+    y += 10;
+
+    doc.setFontSize(11);
+
+    window.settlementLines.forEach((s,i)=>{
+
+        doc.text(
+            `${i+1}. ${s.from} has to pay ₹ ${s.amount.toFixed(2)} to ${s.to}`,
+            14,
+            y
+        );
+
+        y += 7;
+    });
 
     doc.save("Cochin_Tour_2026_Report.pdf");
 }
@@ -601,7 +655,7 @@ function saveData(){
 
     saveMeta();
 
-    alert("Data Saved Locally");
+    alert("Data Saved Successfully");
 }
 
 function loadData(){
@@ -617,7 +671,7 @@ function loadData(){
 
     render();
 
-    alert("Data Loaded");
+    alert("Data Loaded Successfully");
 }
 
 loadData();
